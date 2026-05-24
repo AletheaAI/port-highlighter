@@ -4,6 +4,8 @@ Burp Suite extension that highlights HTTP requests in **Proxy History** based on
 
 If you pentest multiple devices simultaneously (e.g., iOS on port 8082, Android on port 8083), this extension color-codes each device's traffic so you can visually separate them at a glance — same idea as [PwnFox](https://github.com/yeswehack/PwnFox) container highlighting, but port-based.
 
+![](screenshot.png)
+
 ## Default Mappings
 
 | Listener Port | Highlight Color |
