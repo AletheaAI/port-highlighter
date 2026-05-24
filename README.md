@@ -1,57 +1,71 @@
-# Port Highlighter
+# Port Highlighter + AI Access Control Tester
 
-Burp Suite extension that highlights HTTP requests in **Proxy History** based on the **listener port** they arrived through.
+Burp Suite extension that does two things:
 
-If you pentest multiple devices simultaneously (e.g., iOS on port 8082, Android on port 8083), this extension color-codes each device's traffic so you can visually separate them at a glance — same idea as [PwnFox](https://github.com/yeswehack/PwnFox) container highlighting, but port-based.
+1. **Highlights Proxy History by listener port** — color-code traffic from different devices (like PwnFox, but port-based)
+2. **AI-powered access control testing** — captures sessions per port, cross-replays requests across roles, and uses AI to detect IDOR / privilege escalation
 
 ![](screenshot.png)
 
-## Default Mappings
+## How Access Control Testing Works
 
-| Listener Port | Highlight Color |
-|---------------|-----------------|
-| 8082          | Red             |
-| 8083          | Green           |
+```
+Device A (admin) → proxy :8082  →  request captured + session stored
+                                     ↓
+                              replay with user session from :8083
+                                     ↓
+                              compare responses
+                                     ↓
+                              AI analyzes differences → reports vulnerability
+```
 
-Edit `DEFAULT_MAPPINGS` in the script to add your own port/color pairs.
+1. **Session tracking** — cookies + auth headers are stored per port
+2. **Cross-replay** — when an admin request comes in, it's automatically replayed using a user session from another port
+3. **Response comparison** — if the user gets the same data as admin, it's flagged
+4. **AI analysis** — flagged findings are sent to an LLM (OpenAI/OpenRouter) that determines if it's a real vulnerability
+5. **Reporting** — vulnerabilities are output to Burp's Extender tab
 
-Available colors: `red`, `orange`, `yellow`, `green`, `cyan`, `blue`, `pink`, `magenta`, `gray`, `none`.
+## Configuration
+
+Edit `port_highlighter.py`:
+
+```python
+ROLE_MAPPINGS = {
+    8082: {"color": "red",    "role": "admin"},
+    8083: {"color": "green",  "role": "user"},
+}
+
+AI_API_KEY = "sk-..."                         # Or set via OPENAI_API_KEY env var
+AI_BASE_URL = "https://api.openai.com/v1/chat/completions"
+AI_MODEL = "gpt-4o-mini"
+
+AUTO_TEST = True   # Set False to only test on right-click
+```
 
 ## Installation
 
-1. Install Jython for Burp:
-   ```bash
-   brew install jython
-   ```
-2. In Burp: **Extender → Extensions → Add**
-   - Extension type: **Python**
-   - Select `port_highlighter.py`
-3. Verify the "Port Highlighter" tab appears and the output panel shows loaded mappings.
-
-## Setup
-
-In **Proxy → Proxy Settings → Proxy Listeners**, create listeners for your devices:
-
-- `127.0.0.1:8082` → Device A
-- `127.0.0.1:8083` → Device B
-
-Configure each device/browser to proxy through its respective port. Requests will appear color-coded in Proxy History.
-
-## Custom Ports & Colors
-
-Open `port_highlighter.py` and edit this dictionary:
-
-```python
-DEFAULT_MAPPINGS = {
-    8082: "red",
-    8083: "green",
-    8080: "orange",   # add more
-    8084: "blue",
-}
+```bash
+brew install jython
 ```
 
-Reload the extension after changes.
+In Burp: **Extender → Extensions → Add** → Type: **Python** → Select `port_highlighter.py`
+
+## Usage
+
+**Automatic mode:** Browse normally on both devices. The extension continuously cross-tests admin requests against user sessions and reports via AI.
+
+**Manual mode:** Right-click any request in Proxy History → **Test Access Control (AI)**.
+
+## Provider Options
+
+Works with any OpenAI-compatible API:
+
+| Provider    | AI_BASE_URL                                       |
+|-------------|---------------------------------------------------|
+| OpenAI      | `https://api.openai.com/v1/chat/completions`      |
+| OpenRouter  | `https://openrouter.ai/api/v1/chat/completions`   |
+| Ollama      | `http://localhost:11434/v1/chat/completions`      |
 
 ## License
 
-MIT — do whatever you want.
+MIT
